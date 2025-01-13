@@ -21,9 +21,19 @@ package com.condation.cms.modules.seo.linking;
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
+import com.condation.cms.api.Constants;
 import com.condation.cms.modules.autolinks.linking.KeywordLinkProcessor;
 import com.condation.cms.modules.autolinks.linking.ProcessingConfig;
 import com.condation.cms.api.cache.ICache;
+import com.condation.cms.api.db.ContentNode;
+import com.condation.cms.api.db.DB;
+import com.condation.cms.api.db.DBFileSystem;
+import com.condation.cms.api.feature.features.CurrentNodeFeature;
+import com.condation.cms.api.feature.features.DBFeature;
+import com.condation.cms.api.module.CMSModuleContext;
+import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.request.RequestContext;
+import java.nio.file.Path;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -39,6 +49,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
+import org.mockito.Mockito;
 
 class KeywordLinkProcessorTest {
 
@@ -74,10 +85,44 @@ class KeywordLinkProcessorTest {
 			public void invalidate(String key) {
 			}
 		};
-		processor = new KeywordLinkProcessor(defaultConfig, iCache);
+		processor = new KeywordLinkProcessor(defaultConfig, iCache, createModuleContext());
 	}
 	private ICache<String, String> iCache;
 
+	private CMSModuleContext createModuleContext () {
+		var db = Mockito.mock(DB.class);
+		var fileSystem = Mockito.mock(DBFileSystem.class);
+		var contentBase = Path.of("/content/");
+		
+		Mockito.when(fileSystem.resolve(Constants.Folders.CONTENT)).thenReturn(contentBase);
+		Mockito.when(db.getFileSystem()).thenReturn(fileSystem);
+		
+		CMSModuleContext moduleContext = new CMSModuleContext();
+		moduleContext.add(DBFeature.class, new DBFeature(db));
+		
+		return moduleContext;
+	}
+	
+	private CMSRequestContext createRequestContext () {
+		return createRequestContext("/");
+	}
+	
+	private CMSRequestContext createRequestContext (String currentNodeURI) {
+		var db = Mockito.mock(DB.class);
+		var fileSystem = Mockito.mock(DBFileSystem.class);
+		var currentNode = Mockito.mock(ContentNode.class);
+		var contentBase = Path.of("/content/");
+		
+		Mockito.when(fileSystem.resolve(Constants.Folders.CONTENT)).thenReturn(contentBase);
+		Mockito.when(currentNode.uri()).thenReturn(currentNodeURI);
+		Mockito.when(db.getFileSystem()).thenReturn(fileSystem);
+		
+		RequestContext requestContext = new RequestContext();
+		requestContext.add(DBFeature.class, new DBFeature(db));
+		requestContext.add(CurrentNodeFeature.class, new CurrentNodeFeature(currentNode));
+		return new CMSRequestContext(requestContext);
+	}
+	
 	@Nested
 	@DisplayName("Basic Functionality Tests")
 	class BasicTests {
@@ -86,7 +131,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should replace single keyword with link")
 		void shouldReplaceSingleKeyword() {
 			processor.addKeywords("https://test.com", "Java");
-			String result = processor.process("<div>Learn Java programming</div>");
+			String result = processor.process("<div>Learn Java programming</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">Java</a>")
@@ -99,7 +144,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should handle multiple keywords for same URL")
 		void shouldHandleMultipleKeywords() {
 			processor.addKeywords("https://test.com", "Java", "Python");
-			String result = processor.process("<div>Learn Java and Python programming</div>");
+			String result = processor.process("<div>Learn Java and Python programming</div>", createRequestContext());
 
 			assertThat(result)
 					.isEqualToIgnoringWhitespace(
@@ -114,7 +159,7 @@ class KeywordLinkProcessorTest {
 			attributes.put("target", "_blank");
 
 			processor.addKeywords("https://test.com", attributes, "Java");
-			String result = processor.process("<div>Learn Java</div>");
+			String result = processor.process("<div>Learn Java</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("href=\"https://test.com\"")
@@ -132,7 +177,7 @@ class KeywordLinkProcessorTest {
 		@ValueSource(strings = {" ", "\t", "\n"})
 		@DisplayName("Should handle null and empty inputs")
 		void shouldHandleNullAndEmptyInputs(String input) {
-			String result = processor.process(input);
+			String result = processor.process(input, createRequestContext());
 			assertThat(result).isEqualTo(input);
 		}
 
@@ -141,7 +186,7 @@ class KeywordLinkProcessorTest {
 		void shouldNotModifyExistingLinks() {
 			processor.addKeywords("https://new.com", "Java");
 			String input = "<div><a href=\"https://old.com\">Java</a> and more Java</div>";
-			String result = processor.process(input);
+			String result = processor.process(input, createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://old.com\">Java</a>")
@@ -154,7 +199,7 @@ class KeywordLinkProcessorTest {
 		void shouldHandleNestedElements() {
 			processor.addKeywords("https://test.com", "Java");
 			String input = "<div><span>Learn Java</span> and <b>Java basics</b></div>";
-			String result = processor.process(input);
+			String result = processor.process(input, createRequestContext());
 
 			assertThat(result)
 					.isEqualToIgnoringWhitespace("<div><span>Learn <a href=\"https://test.com\">Java</a></span> and <b><a href=\"https://test.com\">Java</a> basics</b></div>");
@@ -172,10 +217,10 @@ class KeywordLinkProcessorTest {
 					.setCaseSensitive(true)
 					.build();
 
-			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache);
+			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache, createModuleContext());
 			sensitiveProcessor.addKeywords("https://test.com", "Java");
 
-			String result = sensitiveProcessor.process("<div>Learn Java and java</div>");
+			String result = sensitiveProcessor.process("<div>Learn Java and java</div>", createRequestContext());
 
 			assertThat(result)
 					.isEqualToIgnoringWhitespace("<div>Learn <a href=\"https://test.com\">Java</a> and java</div>");
@@ -186,7 +231,7 @@ class KeywordLinkProcessorTest {
 		void shouldRespectExcludedTags() {
 			processor.addKeywords("https://test.com", "Java");
 			String input = "<div>Learn Java <code>Java code</code> <pre>Java example</pre></div>";
-			String result = processor.process(input);
+			String result = processor.process(input, createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">Java</a>")
@@ -215,7 +260,7 @@ class KeywordLinkProcessorTest {
 			for (int i = 0; i < threadCount; i++) {
 				executor.submit(() -> {
 					try {
-						String result = processor.process(input);
+						String result = processor.process(input, createRequestContext());
 						assertThat(result)
 								.isEqualTo(expected)
 								.contains("<a href=\"https://test.com\">Java</a>");
@@ -244,7 +289,7 @@ class KeywordLinkProcessorTest {
 			processor.addKeywords("https://test.com", "Java", "Python");
 
 			long startTime = System.nanoTime();
-			String result = processor.process(largeDoc.toString());
+			String result = processor.process(largeDoc.toString(), createRequestContext());
 			long processingTime = (System.nanoTime() - startTime) / 1_000_000; // Convert to milliseconds
 
 			assertThat(processingTime)
@@ -268,7 +313,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should handle various HTML structures")
 		void shouldHandleVariousHtmlStructures(String input, String expected) {
 			processor.addKeywords("https://test.com", "Java");
-			String result = processor.process(input);
+			String result = processor.process(input, createRequestContext());
 
 			assertThat(result)
 					.isEqualToIgnoringWhitespace(expected)
@@ -302,7 +347,7 @@ class KeywordLinkProcessorTest {
 		void shouldNotReplaceSubstrings() {
 			processor.addKeywords("https://test.com", "Java");
 
-			assertThat(processor.process("<div>JavaScript</div>"))
+			assertThat(processor.process("<div>JavaScript</div>", createRequestContext()))
 					.isEqualToIgnoringWhitespace("<div>JavaScript</div>")
 					.doesNotContain("<a href=");
 		}
@@ -314,10 +359,10 @@ class KeywordLinkProcessorTest {
 					.setWholeWordsOnly(false)
 					.build();
 
-			KeywordLinkProcessor nonWholeWordProcessor = new KeywordLinkProcessor(config, iCache);
+			KeywordLinkProcessor nonWholeWordProcessor = new KeywordLinkProcessor(config, iCache, createModuleContext());
 			nonWholeWordProcessor.addKeywords("https://test.com", "Java");
 
-			assertThat(nonWholeWordProcessor.process("<div>JavaScript</div>"))
+			assertThat(nonWholeWordProcessor.process("<div>JavaScript</div>", createRequestContext()))
 					.contains("<a href=\"https://test.com\">Java</a>Script");
 		}
 
@@ -326,7 +371,7 @@ class KeywordLinkProcessorTest {
 		void shouldHandleWordPunctuation() {
 			processor.addKeywords("https://test.com", "Java");
 
-			String result = processor.process("<div>Java, Java. Java! Java? Java; Java:</div>");
+			String result = processor.process("<div>Java, Java. Java! Java? Java; Java:</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">Java</a>,")
@@ -342,10 +387,10 @@ class KeywordLinkProcessorTest {
 		void shouldHandleSpecialCases() {
 			processor.addKeywords("https://test.com", "Java");
 
-			assertThat(processor.process("<div>JavaBean</div>"))
+			assertThat(processor.process("<div>JavaBean</div>", createRequestContext()))
 					.isEqualToIgnoringWhitespace("<div>JavaBean</div>");
 
-			assertThat(processor.process("<div>jquery.Java()</div>"))
+			assertThat(processor.process("<div>jquery.Java()</div>", createRequestContext()))
 					.isEqualToIgnoringWhitespace("<div>jquery.<a href=\"https://test.com\">Java</a>()</div>");
 		}
 	}
@@ -358,7 +403,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should match case-insensitively by default")
 		void shouldMatchCaseInsensitivelyByDefault() {
 			processor.addKeywords("https://test.com", "Java");
-			String result = processor.process("<div>java JAVA Java jAVa</div>");
+			String result = processor.process("<div>java JAVA Java jAVa</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">java</a>")
@@ -375,10 +420,10 @@ class KeywordLinkProcessorTest {
 					.setWholeWordsOnly(true)
 					.build();
 
-			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache);
+			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache, createModuleContext());
 			sensitiveProcessor.addKeywords("https://test.com", "Java");
 
-			String result = sensitiveProcessor.process("<div>java JAVA Java jAVa</div>");
+			String result = sensitiveProcessor.process("<div>java JAVA Java jAVa</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">Java</a>")
@@ -391,7 +436,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should preserve original case when replacing")
 		void shouldPreserveOriginalCase() {
 			processor.addKeywords("https://test.com", "java");
-			String result = processor.process("<div>JAVA Java java</div>");
+			String result = processor.process("<div>JAVA Java java</div>", createRequestContext());
 
 			assertThat(result)
 					.contains("<a href=\"https://test.com\">JAVA</a>")
@@ -403,7 +448,7 @@ class KeywordLinkProcessorTest {
 		@DisplayName("Should handle mixed case keywords")
 		void shouldHandleMixedCaseKeywords() {
 			processor.addKeywords("https://test.com", "Java", "JAVA", "java");
-			String result = processor.process("<div>Java JAVA java</div>");
+			String result = processor.process("<div>Java JAVA java</div>", createRequestContext());
 
 			// All should be matched since it's case insensitive by default
 			assertThat(result)
@@ -418,7 +463,7 @@ class KeywordLinkProcessorTest {
 		processor.addKeywords("https://java.net", "java");
 		processor.addKeywords("https://condation.com", "CondationCMS");
 
-		var result = processor.process("<div>CondationCMS is build on java!</div>");
+		var result = processor.process("<div>CondationCMS is build on java!</div>", createRequestContext());
 		result = result.replaceAll("\\n", "");
 
 		assertThat(result)
@@ -429,10 +474,21 @@ class KeywordLinkProcessorTest {
 	void remove_combined_keywords() {
 		processor.addKeywords("https://java.net", "java is create");
 
-		var result = processor.process("<div>CondationCMS is build on java because java is create!</div>");
+		var result = processor.process("<div>CondationCMS is build on java because java is create!</div>", createRequestContext());
 		result = result.replaceAll("\\n", "");
 
 		assertThat(result)
 				.isEqualToIgnoringWhitespace("<div>CondationCMS is build on java because <a href=\"https://java.net\">java is create</a>!</div>");
+	}
+	
+	@Test
+	void doesnt_replace_current_node() {
+		processor.addKeywords("/java", "CondationCMS");
+
+		var result = processor.process("<div>CondationCMS is build on java because java is create!</div>", createRequestContext("java/index.md"));
+		result = result.replaceAll("\\n", "");
+
+		assertThat(result)
+				.isEqualToIgnoringWhitespace("<div>CondationCMS is build on java because java is create!</div>");
 	}
 }

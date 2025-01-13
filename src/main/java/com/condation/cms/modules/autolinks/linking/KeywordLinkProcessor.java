@@ -27,6 +27,9 @@ package com.condation.cms.modules.autolinks.linking;
  * @author t.marx
  */
 import com.condation.cms.api.cache.ICache;
+import com.condation.cms.api.db.ContentNode;
+import com.condation.cms.api.module.CMSModuleContext;
+import com.condation.cms.api.module.CMSRequestContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.jsoup.Jsoup;
@@ -45,15 +48,15 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
 	
 	@Getter
 	private KeywordConfiguration keywordConfig;
-
-    public KeywordLinkProcessor(ProcessingConfig config, ICache<String, String> cache) {
-        this.keywordManager = new KeywordManager(config, cache);
+	
+	public KeywordLinkProcessor(ProcessingConfig config, ICache<String, String> cache, CMSModuleContext context) {
+        this.keywordManager = new KeywordManager(config, cache, context);
         this.config = config;
     }
 
-	public static KeywordLinkProcessor build (Path configFile, ICache<String, String> cache) throws IOException {
+	public static KeywordLinkProcessor build (Path configFile, ICache<String, String> cache, CMSModuleContext moduleContext) throws IOException {
 		ProcessingConfig pconfig = new ProcessingConfig.Builder().build();
-		var processor = new KeywordLinkProcessor(pconfig, cache);
+		var processor = new KeywordLinkProcessor(pconfig, cache, moduleContext);
 		KeywordConfiguration kconfig = new KeywordConfiguration(configFile, processor, pconfig);
 		
 		processor.keywordConfig = kconfig;
@@ -67,37 +70,32 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
 		keywordConfig.update();
 	}
 	
-    public String process(String htmlContent) {
+    public String process(String htmlContent, CMSRequestContext requestContext) {
         if (htmlContent == null || htmlContent.length() < MINIMUM_KEYWORD_LENGTH) {
             return htmlContent;
         }
-		
-		if (keywordConfig != null && keywordConfig.isUpdateNecassary()) {
-			keywordManager.clear();
-			keywordConfig.update();
-		}
 
         Document doc = Jsoup.parse(htmlContent);
-        processNode(doc.body());
+        processNode(doc.body(), requestContext);
         String result = doc.body().html();
         doc.html(""); // Clear for reuse
         return result;
     }
 
-    private void processNode(Element element) {
+    private void processNode(Element element, CMSRequestContext requestContext) {
         if (config.isExcludedTag(element.tagName())) {
             return;
         }
 
         // Process all text nodes in one pass
-        element.textNodes().forEach(this::processTextNode);
+        element.textNodes().forEach(textNode -> processTextNode(textNode, requestContext));
         
         // Process child elements
-        element.children().forEach(this::processNode);
+        element.children().forEach(node -> processNode(node, requestContext));
     }
 
-    private void processTextNode(TextNode textNode) {
-        String processed = keywordManager.replaceKeywords(textNode.text());
+    private void processTextNode(TextNode textNode, CMSRequestContext requestContext) {
+        String processed = keywordManager.replaceKeywords(textNode.text(), requestContext);
         if (!textNode.text().equals(processed)) {
             textNode.after(processed);
             textNode.remove();

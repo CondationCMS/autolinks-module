@@ -126,14 +126,14 @@ public class KeywordConfiguration {
 		}
 		var query = db.getContent().query((ContentNode t, Integer u) -> t);
 	
-		var nodes = query.whereExists("seo.autolink.keywords").get();
+		var nodes = query.whereExists("autolinks.keywords").get();
 		
 		nodes.forEach(node -> {
 			final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
 			var nodePath = contentBase.resolve(node.uri());
 			
 			String url = PathUtil.toURI(nodePath, contentBase);
-			List<String> keywords = (List<String>) MapUtil.getValue(node.data(), "seo.autolink.keywords");
+			List<String> keywords = (List<String>) MapUtil.getValue(node.data(), "autolinks.keywords");
 			
 			updateConsumer.accept(new Keyword(url, keywords));
 		});

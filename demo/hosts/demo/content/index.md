@@ -11,3 +11,5 @@ search:
 
 
 CondationCMS is build on java!
+
+[No replacement](/nolinks)

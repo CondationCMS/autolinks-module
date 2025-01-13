@@ -60,10 +60,10 @@ public class LifeCycleExtension extends ModuleLifeCycleExtension<CMSModuleContex
 			Path configPath = db.getFileSystem().resolve("config/keyword_links.yaml");
 
 			ICache<String, String> cache = getContext().get(CacheManagerFeature.class).cacheManager().get(
-					"seo_keyword_links",
+					"autolinks.content",
 					new CacheManager.CacheConfig(100l, Duration.ofMinutes(1)));
 
-			PROCESSOR = KeywordLinkProcessor.build(configPath, cache);
+			PROCESSOR = KeywordLinkProcessor.build(configPath, cache, getContext());
 			PROCESSOR.getKeywordConfig().setDB(db);
 
 			getContext().get(CronJobSchedulerFeature.class)

@@ -23,6 +23,7 @@ package com.condation.cms.modules.autolinks.extensions;
  */
 
 import com.condation.cms.api.extensions.HookSystemRegisterExtensionPoint;
+import com.condation.cms.api.feature.features.CurrentNodeFeature;
 import com.condation.cms.api.hooks.FilterContext;
 import com.condation.cms.api.hooks.HookSystem;
 import com.condation.cms.api.hooks.Hooks;
@@ -40,10 +41,18 @@ public class ContentFilterExtension extends HookSystemRegisterExtensionPoint {
 
 		hookSystem.registerFilter(
 				Hooks.CONTENT_FILTER.hook(),
-				(FilterContext<String> context) -> LifeCycleExtension.PROCESSOR.process(context.value()),
+				this::filterContent,
 				1000
 		);
 
 	}
 
+	private String filterContent (FilterContext<String> context) {
+		var currentNode = getRequestContext().get(CurrentNodeFeature.class).node();
+		if (currentNode.getMetaValue("autolinks.disabled", false)) {
+			return context.value();
+		}
+		return LifeCycleExtension.PROCESSOR.process(context.value(), getRequestContext());
+	}
+	
 }

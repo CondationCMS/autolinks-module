@@ -21,13 +21,20 @@ package com.condation.cms.modules.autolinks.linking;
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
+import com.condation.cms.api.Constants;
 import com.condation.cms.api.cache.ICache;
+import com.condation.cms.api.db.ContentNode;
+import com.condation.cms.api.db.DB;
+import com.condation.cms.api.feature.features.CurrentNodeFeature;
+import com.condation.cms.api.feature.features.DBFeature;
+import com.condation.cms.api.module.CMSModuleContext;
+import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.utils.PathUtil;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -41,13 +48,16 @@ class KeywordManager {
 	private final List<KeywordPattern> compiledPatterns;
 	private final ICache<String, String> replacementCache;
 
+	private final CMSModuleContext moduleContext;
+	
 	private final ProcessingConfig config;
 
-	public KeywordManager(ProcessingConfig config, ICache<String, String> cache) {
+	public KeywordManager(ProcessingConfig config, ICache<String, String> cache, CMSModuleContext moduleContext) {
 		this.keywordMappings = new HashMap<>();
 		this.compiledPatterns = new ArrayList<>();
 		this.config = config;
 		this.replacementCache = cache;
+		this.moduleContext = moduleContext;
 	}
 
 	public void clear() {
@@ -101,7 +111,14 @@ class KeywordManager {
 				});
 	}
 
-	public String replaceKeywords(String text) {
+	public String replaceKeywords(String text, CMSRequestContext requestContext) {
+		final DB db = moduleContext.get(DBFeature.class).db();
+
+		ContentNode currentNode = requestContext.get(CurrentNodeFeature.class).node();
+		final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
+		var nodePath = contentBase.resolve(currentNode.uri());
+		String currentNodeUrl = PathUtil.toURI(nodePath, contentBase);
+
 		// Check cache first
 		String cacheKey = text + config.hashCode();
 		String cachedResult = replacementCache.get(cacheKey);
@@ -118,7 +135,8 @@ class KeywordManager {
 						String matchedText = matchResult.group(1);
 						String lookupKey = config.isCaseSensitive() ? matchedText : matchedText.toLowerCase();
 						KeywordMapping mapping = keywordMappings.get(lookupKey);
-						if (mapping != null) {
+						
+						if (mapping != null && !mapping.getUrl().equals(currentNodeUrl)) {
 							matches.add(new Match(
 									matchResult.start(),
 									matchResult.end(),
