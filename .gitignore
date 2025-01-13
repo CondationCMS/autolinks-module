@@ -1,0 +1,10 @@
+target/
+.vscode/settings.json
+/nbproject/
+demo/*.*
+demo/LICENSE
+demo/logs/
+demo/modules/
+demo/lib/
+demo/hosts/demo/modules_data/
+demo/themes/
