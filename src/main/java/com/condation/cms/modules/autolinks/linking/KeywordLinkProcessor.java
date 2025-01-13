@@ -27,7 +27,6 @@ package com.condation.cms.modules.autolinks.linking;
  * @author t.marx
  */
 import com.condation.cms.api.cache.ICache;
-import com.condation.cms.api.db.ContentNode;
 import com.condation.cms.api.module.CMSModuleContext;
 import com.condation.cms.api.module.CMSRequestContext;
 import java.io.IOException;
@@ -75,6 +74,9 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
             return htmlContent;
         }
 
+		requestContext.add(KeywordFrequenceFeature.class, new KeywordFrequenceFeature());
+		requestContext.add(LinkFrequenceFeature.class, new LinkFrequenceFeature());
+		
         Document doc = Jsoup.parse(htmlContent);
         processNode(doc.body(), requestContext);
         String result = doc.body().html();

@@ -28,14 +28,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class ProcessingConfig {
-    private Set<String> excludedTags;
+    private final Set<String> excludedTags;
     private boolean caseSensitive;
     private boolean wholeWordsOnly;
+	private int linkFrequency = 2;
+	private int totalLinkCount = 10;
 
     private ProcessingConfig(Builder builder) {
         this.excludedTags = new HashSet<>(builder.excludedTags);
         this.caseSensitive = builder.caseSensitive;
         this.wholeWordsOnly = builder.wholeWordsOnly;
+		this.linkFrequency = builder.linkFrequency;
+		this.totalLinkCount = builder.totalLinkCount;
     }
 
 	public void setCaseSensitive(boolean caseSensitive) {
@@ -63,10 +67,30 @@ public class ProcessingConfig {
         return wholeWordsOnly;
     }
 
+	public int getLinkFrequency() {
+		return linkFrequency;
+	}
+
+	public void setLinkFrequency(int linkFrequency) {
+		this.linkFrequency = linkFrequency;
+	}
+
+	public int getTotalLinkCount() {
+		return totalLinkCount;
+	}
+
+	public void setTotalLinkCount(int totalLinkCount) {
+		this.totalLinkCount = totalLinkCount;
+	}
+	
+	
+
     public static class Builder {
         private Set<String> excludedTags;
         private boolean caseSensitive;
         private boolean wholeWordsOnly;
+		private int linkFrequency = 2;
+		private int totalLinkCount = 10;
 
         public Builder() {
             this.excludedTags = new HashSet<>(Arrays.asList("a", "script", "style", "code", "pre"));
@@ -74,6 +98,16 @@ public class ProcessingConfig {
             this.wholeWordsOnly = true;
         }
 
+		public Builder setLinkFrequency(int lingFreq) {
+            this.linkFrequency = lingFreq;
+            return this;
+        }
+		
+		public Builder setTotalLinkCount(int lingTotal) {
+            this.totalLinkCount = lingTotal;
+            return this;
+        }
+		
         public Builder setExcludedTags(Set<String> excludedTags) {
             this.excludedTags = excludedTags;
             return this;

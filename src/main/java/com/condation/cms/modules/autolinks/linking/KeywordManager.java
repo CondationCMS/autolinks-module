@@ -112,13 +112,6 @@ class KeywordManager {
 	}
 
 	public String replaceKeywords(String text, CMSRequestContext requestContext) {
-		final DB db = moduleContext.get(DBFeature.class).db();
-
-		ContentNode currentNode = requestContext.get(CurrentNodeFeature.class).node();
-		final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
-		var nodePath = contentBase.resolve(currentNode.uri());
-		String currentNodeUrl = PathUtil.toURI(nodePath, contentBase);
-
 		// Check cache first
 		String cacheKey = text + config.hashCode();
 		String cachedResult = replacementCache.get(cacheKey);
@@ -126,6 +119,16 @@ class KeywordManager {
 			return cachedResult;
 		}
 
+		final DB db = moduleContext.get(DBFeature.class).db();
+
+		ContentNode currentNode = requestContext.get(CurrentNodeFeature.class).node();
+		final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
+		var nodePath = contentBase.resolve(currentNode.uri());
+		String currentNodeUrl = PathUtil.toURI(nodePath, contentBase);
+		
+		var kwFrequency = requestContext.get(KeywordFrequenceFeature.class);
+		var linkFrequency = requestContext.get(LinkFrequenceFeature.class);
+		
 		// Find all matches first and store them
 		List<Match> matches = new ArrayList<>();
 		for (KeywordPattern pattern : compiledPatterns) {
@@ -137,6 +140,15 @@ class KeywordManager {
 						KeywordMapping mapping = keywordMappings.get(lookupKey);
 						
 						if (mapping != null && !mapping.getUrl().equals(currentNodeUrl)) {
+							
+							if (linkFrequency.get(mapping.getUrl()) == config.getLinkFrequency()) {
+								return;
+							} else if (linkFrequency.total()>= config.getTotalLinkCount()) {
+								return;
+							}
+							
+							linkFrequency.increment(mapping.getUrl());
+							
 							matches.add(new Match(
 									matchResult.start(),
 									matchResult.end(),

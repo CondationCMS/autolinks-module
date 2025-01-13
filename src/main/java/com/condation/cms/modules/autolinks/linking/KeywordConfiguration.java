@@ -102,6 +102,9 @@ public class KeywordConfiguration {
 
 			config.setCaseSensitive((boolean) yamlData.getOrDefault("caseSensitive", true));
 			config.setWholeWordsOnly((boolean) yamlData.getOrDefault("wholeWordsOnly", true));
+
+			config.setLinkFrequency((int) yamlData.getOrDefault("linkFrequency", 2));
+			config.setTotalLinkCount((int) yamlData.getOrDefault("totalLinkCount", 10));
 			
 			config.setExcludeTags((Collection<String>) yamlData.getOrDefault("excludeTags", Collections.emptyList()));
 

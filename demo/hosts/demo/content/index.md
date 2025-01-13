@@ -12,4 +12,8 @@ search:
 
 CondationCMS is build on java!
 
+This java also gets replaced!
+
+The last java doesn't get replaces, also the jvm not.
+
 [No replacement](/nolinks)

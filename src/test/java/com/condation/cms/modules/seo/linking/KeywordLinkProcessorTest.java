@@ -61,6 +61,8 @@ class KeywordLinkProcessorTest {
 		defaultConfig = new ProcessingConfig.Builder()
 				.setCaseSensitive(false)
 				.setWholeWordsOnly(true)
+				.setLinkFrequency(10)
+				.setTotalLinkCount(100)
 				.build();
 		iCache = new ICache<String, String>() {
 			@Override
@@ -286,7 +288,8 @@ class KeywordLinkProcessorTest {
 			}
 			largeDoc.append("</div>");
 
-			processor.addKeywords("https://test.com", "Java", "Python");
+			processor.addKeywords("https://python.com", "Python");
+			processor.addKeywords("https://java.com", "Java");
 
 			long startTime = System.nanoTime();
 			String result = processor.process(largeDoc.toString(), createRequestContext());
@@ -297,8 +300,8 @@ class KeywordLinkProcessorTest {
 					.isLessThan(1000);
 
 			assertThat(result)
-					.contains("<a href=\"https://test.com\">Java</a>")
-					.contains("<a href=\"https://test.com\">Python</a>")
+					.contains("<a href=\"https://java.com\">Java</a>")
+					.contains("<a href=\"https://python.com\">Python</a>")
 					.startsWith("<div>")
 					.endsWith("</div>");
 		}
