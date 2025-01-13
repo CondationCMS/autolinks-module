@@ -113,7 +113,7 @@ class KeywordManager {
 
 	public String replaceKeywords(String text, CMSRequestContext requestContext) {
 		// Check cache first
-		String cacheKey = text + config.hashCode();
+		String cacheKey = Integer.toHexString((text + config.hashCode()).hashCode());
 		String cachedResult = replacementCache.get(cacheKey);
 		if (cachedResult != null) {
 			return cachedResult;
