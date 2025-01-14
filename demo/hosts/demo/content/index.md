@@ -16,4 +16,6 @@ This java also gets replaced!
 
 The last java doesn't get replaces, also the jvm not.
 
+look at our categories
+
 [No replacement](/nolinks)

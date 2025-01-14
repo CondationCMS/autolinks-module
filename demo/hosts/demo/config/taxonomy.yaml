@@ -1,0 +1,6 @@
+## YAML Template.
+---
+taxonomies:
+  - title: Categories
+    slug: categories
+    field: taxonomy.category

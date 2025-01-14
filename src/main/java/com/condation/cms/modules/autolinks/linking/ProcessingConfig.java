@@ -33,6 +33,7 @@ public class ProcessingConfig {
     private boolean wholeWordsOnly;
 	private int linkFrequency = 2;
 	private int totalLinkCount = 10;
+	private boolean useTaxonomies;
 
     private ProcessingConfig(Builder builder) {
         this.excludedTags = new HashSet<>(builder.excludedTags);
@@ -40,6 +41,7 @@ public class ProcessingConfig {
         this.wholeWordsOnly = builder.wholeWordsOnly;
 		this.linkFrequency = builder.linkFrequency;
 		this.totalLinkCount = builder.totalLinkCount;
+		this.useTaxonomies = builder.useTaxonomies;
     }
 
 	public void setCaseSensitive(boolean caseSensitive) {
@@ -54,6 +56,14 @@ public class ProcessingConfig {
 		excludedTags.clear();
 		excludedTags.addAll(tags);
 	}
+	
+	public void setUseTaxonomies (boolean useTaxonomies) {
+		this.useTaxonomies = useTaxonomies;
+	}
+	
+    public boolean isUseTaxonomies() {
+        return useTaxonomies;
+    }
 	
     public boolean isExcludedTag(String tag) {
         return excludedTags.contains(tag.toLowerCase());
@@ -91,11 +101,13 @@ public class ProcessingConfig {
         private boolean wholeWordsOnly;
 		private int linkFrequency = 2;
 		private int totalLinkCount = 10;
+		private boolean useTaxonomies;
 
         public Builder() {
             this.excludedTags = new HashSet<>(Arrays.asList("a", "script", "style", "code", "pre"));
             this.caseSensitive = false;
             this.wholeWordsOnly = true;
+			this.useTaxonomies = true;
         }
 
 		public Builder setLinkFrequency(int lingFreq) {
@@ -115,6 +127,10 @@ public class ProcessingConfig {
 
         public Builder setCaseSensitive(boolean caseSensitive) {
             this.caseSensitive = caseSensitive;
+            return this;
+        }
+        public Builder setUseTaxonomies(boolean useTaxonomies) {
+            this.useTaxonomies = useTaxonomies;
             return this;
         }
 

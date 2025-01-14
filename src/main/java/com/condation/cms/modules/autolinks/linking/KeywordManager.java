@@ -29,6 +29,7 @@ import com.condation.cms.api.feature.features.CurrentNodeFeature;
 import com.condation.cms.api.feature.features.DBFeature;
 import com.condation.cms.api.module.CMSModuleContext;
 import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.utils.HTTPUtil;
 import com.condation.cms.api.utils.PathUtil;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -165,7 +166,7 @@ class KeywordManager {
 		// Apply replacements from end to start
 		StringBuilder result = new StringBuilder(text);
 		for (Match match : matches) {
-			String replacement = buildLink(match.keyword, match.mapping);
+			String replacement = buildLink(match.keyword, match.mapping, requestContext);
 			result.replace(match.start, match.end, replacement);
 		}
 
@@ -174,7 +175,7 @@ class KeywordManager {
 		return finalResult;
 	}
 
-	private String buildLink(String matchedText, KeywordMapping mapping) {
+	private String buildLink(String matchedText, KeywordMapping mapping, CMSRequestContext requestContext) {
 		String cacheKey = matchedText + mapping.hashCode();
 
 		if (replacementCache.contains(cacheKey)) {
@@ -183,7 +184,7 @@ class KeywordManager {
 
 		StringBuilder link = new StringBuilder(matchedText.length() * 2)
 				.append("<a href=\"")
-				.append(mapping.getUrl())
+				.append(HTTPUtil.modifyUrl(mapping.getUrl(), requestContext))
 				.append("\"");
 
 		mapping.getAttributes().forEach((key, value)

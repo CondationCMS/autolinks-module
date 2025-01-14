@@ -92,6 +92,8 @@ public class KeywordConfiguration {
 
 		loadFromDB();
 		
+		loadFromTaxonomies();
+		
 		if (!Files.exists(configFile)) {
 			return;
 		}
@@ -102,6 +104,7 @@ public class KeywordConfiguration {
 
 			config.setCaseSensitive((boolean) yamlData.getOrDefault("caseSensitive", true));
 			config.setWholeWordsOnly((boolean) yamlData.getOrDefault("wholeWordsOnly", true));
+			config.setUseTaxonomies((boolean) yamlData.getOrDefault("useTaxonomies", true));
 
 			config.setLinkFrequency((int) yamlData.getOrDefault("linkFrequency", 2));
 			config.setTotalLinkCount((int) yamlData.getOrDefault("totalLinkCount", 10));
@@ -123,6 +126,22 @@ public class KeywordConfiguration {
 		}
 	}
 
+	private void loadFromTaxonomies () {
+		if (db == null) {
+			return;
+		}
+		
+		if (!config.isUseTaxonomies()) {
+			
+		}
+		
+		db.getTaxonomies().all().forEach(taxo -> {
+			String url = "/%s".formatted(taxo.slug);
+			
+			updateConsumer.accept(new Keyword(url, List.of(taxo.title)));
+		});
+	}
+	
 	private void loadFromDB() {
 		if (db == null) {
 			return;
