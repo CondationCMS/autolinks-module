@@ -56,8 +56,8 @@ public class KeywordConfiguration {
 		this.updateConsumer = updateConsumer;
 		this.config = config;
 	}
-	
-	public void setDB (DB db) {
+
+	public void setDB(DB db) {
 		this.db = db;
 	}
 
@@ -91,9 +91,9 @@ public class KeywordConfiguration {
 	public void update() {
 
 		loadFromDB();
-		
+
 		loadFromTaxonomies();
-		
+
 		if (!Files.exists(configFile)) {
 			return;
 		}
@@ -105,10 +105,11 @@ public class KeywordConfiguration {
 			config.setCaseSensitive((boolean) yamlData.getOrDefault("caseSensitive", true));
 			config.setWholeWordsOnly((boolean) yamlData.getOrDefault("wholeWordsOnly", true));
 			config.setUseTaxonomies((boolean) yamlData.getOrDefault("useTaxonomies", true));
+			config.setUseTaxonomyValues((boolean) yamlData.getOrDefault("useTaxonomyValues", true));
 
 			config.setLinkFrequency((int) yamlData.getOrDefault("linkFrequency", 2));
 			config.setTotalLinkCount((int) yamlData.getOrDefault("totalLinkCount", 10));
-			
+
 			config.setExcludeTags((Collection<String>) yamlData.getOrDefault("excludeTags", Collections.emptyList()));
 
 			List<Map<String, Object>> replacements = (List<Map<String, Object>>) yamlData.getOrDefault("replacements", Collections.emptyList());
@@ -126,37 +127,43 @@ public class KeywordConfiguration {
 		}
 	}
 
-	private void loadFromTaxonomies () {
+	private void loadFromTaxonomies() {
 		if (db == null) {
 			return;
 		}
-		
-		if (!config.isUseTaxonomies()) {
-			
+
+		if (config.isUseTaxonomies()) {
+			db.getTaxonomies().all().forEach(taxo -> {
+				String url = "/%s".formatted(taxo.slug);
+				updateConsumer.accept(new Keyword(url, List.of(taxo.title)));
+			});
 		}
-		
-		db.getTaxonomies().all().forEach(taxo -> {
-			String url = "/%s".formatted(taxo.slug);
-			
-			updateConsumer.accept(new Keyword(url, List.of(taxo.title)));
-		});
+
+		if (config.isUseTaxonomyValues()) {
+			db.getTaxonomies().all().forEach(taxo -> {
+				taxo.getValues().values().forEach(value -> {
+					String url = "/%s/%s".formatted(taxo.slug, value.id);
+					updateConsumer.accept(new Keyword(url, List.of(value.title)));
+				});
+			});
+		}
 	}
-	
+
 	private void loadFromDB() {
 		if (db == null) {
 			return;
 		}
 		var query = db.getContent().query((ContentNode t, Integer u) -> t);
-	
+
 		var nodes = query.whereExists("autolinks.keywords").get();
-		
+
 		nodes.forEach(node -> {
 			final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
 			var nodePath = contentBase.resolve(node.uri());
-			
+
 			String url = PathUtil.toURI(nodePath, contentBase);
 			List<String> keywords = (List<String>) MapUtil.getValue(node.data(), "autolinks.keywords");
-			
+
 			updateConsumer.accept(new Keyword(url, keywords));
 		});
 	}

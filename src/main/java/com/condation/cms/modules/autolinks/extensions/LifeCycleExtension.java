@@ -57,7 +57,7 @@ public class LifeCycleExtension extends ModuleLifeCycleExtension<CMSModuleContex
 	public void activate() {
 		try {
 			final DB db = getContext().get(DBFeature.class).db();
-			Path configPath = db.getFileSystem().resolve("config/keyword_links.yaml");
+			Path configPath = db.getFileSystem().resolve("config/autolinks.yaml");
 
 			ICache<String, String> cache = getContext().get(CacheManagerFeature.class).cacheManager().get(
 					"autolinks.content",

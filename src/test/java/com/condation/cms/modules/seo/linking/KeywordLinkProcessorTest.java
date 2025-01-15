@@ -44,6 +44,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -91,39 +92,58 @@ class KeywordLinkProcessorTest {
 	}
 	private ICache<String, String> iCache;
 
-	private CMSModuleContext createModuleContext () {
+	private CMSModuleContext createModuleContext() {
 		var db = Mockito.mock(DB.class);
 		var fileSystem = Mockito.mock(DBFileSystem.class);
 		var contentBase = Path.of("/content/");
-		
+
 		Mockito.when(fileSystem.resolve(Constants.Folders.CONTENT)).thenReturn(contentBase);
 		Mockito.when(db.getFileSystem()).thenReturn(fileSystem);
-		
+
 		CMSModuleContext moduleContext = new CMSModuleContext();
 		moduleContext.add(DBFeature.class, new DBFeature(db));
-		
+
 		return moduleContext;
 	}
-	
-	private CMSRequestContext createRequestContext () {
-		return createRequestContext("/");
+
+	private CMSRequestContext createRequestContext() {
+		return createRequestContext("/index.md");
 	}
-	
-	private CMSRequestContext createRequestContext (String currentNodeURI) {
+
+	private CMSRequestContext createRequestContext(String currentNodeURI) {
 		var db = Mockito.mock(DB.class);
 		var fileSystem = Mockito.mock(DBFileSystem.class);
 		var currentNode = Mockito.mock(ContentNode.class);
 		var contentBase = Path.of("/content/");
-		
+
 		Mockito.when(fileSystem.resolve(Constants.Folders.CONTENT)).thenReturn(contentBase);
 		Mockito.when(currentNode.uri()).thenReturn(currentNodeURI);
 		Mockito.when(db.getFileSystem()).thenReturn(fileSystem);
-		
+
 		RequestContext requestContext = new RequestContext();
 		requestContext.add(DBFeature.class, new DBFeature(db));
 		requestContext.add(CurrentNodeFeature.class, new CurrentNodeFeature(currentNode));
 		return new CMSRequestContext(requestContext);
 	}
+
+	private void updateKeywords(List<KW> keywords) {
+		processor.getKeywordManager().prepareUpdate();
+
+		keywords.forEach(kw -> {
+			processor.addKeywords(kw.url, kw.attributes, kw.keywords);
+		});
+
+		processor.getKeywordManager().finishUpdate();
+	}
+
+	private static record KW(String url, Map<String, String> attributes, String... keywords) {
+
+		public KW(String url, String... keywords) {
+			this(url, Map.of(), keywords);
+		}
+	}
+
+	;
 	
 	@Nested
 	@DisplayName("Basic Functionality Tests")
@@ -132,7 +152,11 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should replace single keyword with link")
 		void shouldReplaceSingleKeyword() {
-			processor.addKeywords("https://test.com", "Java");
+
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String result = processor.process("<div>Learn Java programming</div>", createRequestContext());
 
 			assertThat(result)
@@ -145,7 +169,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should handle multiple keywords for same URL")
 		void shouldHandleMultipleKeywords() {
-			processor.addKeywords("https://test.com", "Java", "Python");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java", "Python")
+			));
+
 			String result = processor.process("<div>Learn Java and Python programming</div>", createRequestContext());
 
 			assertThat(result)
@@ -160,7 +187,10 @@ class KeywordLinkProcessorTest {
 			attributes.put("class", "external");
 			attributes.put("target", "_blank");
 
-			processor.addKeywords("https://test.com", attributes, "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", attributes, "Java")
+			));
+
 			String result = processor.process("<div>Learn Java</div>", createRequestContext());
 
 			assertThat(result)
@@ -186,7 +216,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should not modify existing links")
 		void shouldNotModifyExistingLinks() {
-			processor.addKeywords("https://new.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://new.com", "Java")
+			));
+
 			String input = "<div><a href=\"https://old.com\">Java</a> and more Java</div>";
 			String result = processor.process(input, createRequestContext());
 
@@ -199,7 +232,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should handle nested HTML elements")
 		void shouldHandleNestedElements() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String input = "<div><span>Learn Java</span> and <b>Java basics</b></div>";
 			String result = processor.process(input, createRequestContext());
 
@@ -220,7 +256,10 @@ class KeywordLinkProcessorTest {
 					.build();
 
 			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache, createModuleContext());
+
+			sensitiveProcessor.getKeywordManager().prepareUpdate();
 			sensitiveProcessor.addKeywords("https://test.com", "Java");
+			sensitiveProcessor.getKeywordManager().finishUpdate();
 
 			String result = sensitiveProcessor.process("<div>Learn Java and java</div>", createRequestContext());
 
@@ -231,7 +270,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should respect excluded tags")
 		void shouldRespectExcludedTags() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String input = "<div>Learn Java <code>Java code</code> <pre>Java example</pre></div>";
 			String result = processor.process(input, createRequestContext());
 
@@ -255,7 +297,10 @@ class KeywordLinkProcessorTest {
 			CountDownLatch latch = new CountDownLatch(threadCount);
 			ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String input = "<div>Learn Java programming</div>";
 			String expected = "<div>Learn <a href=\"https://test.com\">Java</a> programming</div>";
 
@@ -288,8 +333,10 @@ class KeywordLinkProcessorTest {
 			}
 			largeDoc.append("</div>");
 
-			processor.addKeywords("https://python.com", "Python");
-			processor.addKeywords("https://java.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://python.com", "Python"),
+					new KW("https://java.com", "Java")
+			));
 
 			long startTime = System.nanoTime();
 			String result = processor.process(largeDoc.toString(), createRequestContext());
@@ -315,7 +362,10 @@ class KeywordLinkProcessorTest {
 		@MethodSource("provideHtmlTestCases")
 		@DisplayName("Should handle various HTML structures")
 		void shouldHandleVariousHtmlStructures(String input, String expected) {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String result = processor.process(input, createRequestContext());
 
 			assertThat(result)
@@ -348,7 +398,9 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should not replace substrings of words when whole words only")
 		void shouldNotReplaceSubstrings() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
 
 			assertThat(processor.process("<div>JavaScript</div>", createRequestContext()))
 					.isEqualToIgnoringWhitespace("<div>JavaScript</div>")
@@ -363,7 +415,9 @@ class KeywordLinkProcessorTest {
 					.build();
 
 			KeywordLinkProcessor nonWholeWordProcessor = new KeywordLinkProcessor(config, iCache, createModuleContext());
+			nonWholeWordProcessor.getKeywordManager().prepareUpdate();
 			nonWholeWordProcessor.addKeywords("https://test.com", "Java");
+			nonWholeWordProcessor.getKeywordManager().finishUpdate();
 
 			assertThat(nonWholeWordProcessor.process("<div>JavaScript</div>", createRequestContext()))
 					.contains("<a href=\"https://test.com\">Java</a>Script");
@@ -372,7 +426,9 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should handle words with punctuation correctly")
 		void shouldHandleWordPunctuation() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
 
 			String result = processor.process("<div>Java, Java. Java! Java? Java; Java:</div>", createRequestContext());
 
@@ -388,7 +444,9 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should handle special cases")
 		void shouldHandleSpecialCases() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
 
 			assertThat(processor.process("<div>JavaBean</div>", createRequestContext()))
 					.isEqualToIgnoringWhitespace("<div>JavaBean</div>");
@@ -405,7 +463,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should match case-insensitively by default")
 		void shouldMatchCaseInsensitivelyByDefault() {
-			processor.addKeywords("https://test.com", "Java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String result = processor.process("<div>java JAVA Java jAVa</div>", createRequestContext());
 
 			assertThat(result)
@@ -424,7 +485,9 @@ class KeywordLinkProcessorTest {
 					.build();
 
 			KeywordLinkProcessor sensitiveProcessor = new KeywordLinkProcessor(caseSensitiveConfig, iCache, createModuleContext());
+			sensitiveProcessor.getKeywordManager().prepareUpdate();
 			sensitiveProcessor.addKeywords("https://test.com", "Java");
+			sensitiveProcessor.getKeywordManager().finishUpdate();
 
 			String result = sensitiveProcessor.process("<div>java JAVA Java jAVa</div>", createRequestContext());
 
@@ -438,7 +501,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should preserve original case when replacing")
 		void shouldPreserveOriginalCase() {
-			processor.addKeywords("https://test.com", "java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java")
+			));
+
 			String result = processor.process("<div>JAVA Java java</div>", createRequestContext());
 
 			assertThat(result)
@@ -450,7 +516,10 @@ class KeywordLinkProcessorTest {
 		@Test
 		@DisplayName("Should handle mixed case keywords")
 		void shouldHandleMixedCaseKeywords() {
-			processor.addKeywords("https://test.com", "Java", "JAVA", "java");
+			updateKeywords(List.of(
+					new KW("https://test.com", "Java", "JAVA", "java")
+			));
+
 			String result = processor.process("<div>Java JAVA java</div>", createRequestContext());
 
 			// All should be matched since it's case insensitive by default
@@ -463,8 +532,10 @@ class KeywordLinkProcessorTest {
 
 	@Test
 	void remove_multiple_keywords() {
-		processor.addKeywords("https://java.net", "java");
-		processor.addKeywords("https://condation.com", "CondationCMS");
+		updateKeywords(List.of(
+				new KW("https://java.net", "java"),
+				new KW("https://condation.com", "CondationCMS")
+		));
 
 		var result = processor.process("<div>CondationCMS is build on java!</div>", createRequestContext());
 		result = result.replaceAll("\\n", "");
@@ -472,10 +543,12 @@ class KeywordLinkProcessorTest {
 		assertThat(result)
 				.isEqualToIgnoringWhitespace("<div><a href=\"https://condation.com\">CondationCMS</a> is build on <a href=\"https://java.net\">java</a>!</div>");
 	}
-	
+
 	@Test
 	void remove_combined_keywords() {
-		processor.addKeywords("https://java.net", "java is create");
+		updateKeywords(List.of(
+				new KW("https://java.net", "java is create")
+		));
 
 		var result = processor.process("<div>CondationCMS is build on java because java is create!</div>", createRequestContext());
 		result = result.replaceAll("\\n", "");
@@ -483,15 +556,33 @@ class KeywordLinkProcessorTest {
 		assertThat(result)
 				.isEqualToIgnoringWhitespace("<div>CondationCMS is build on java because <a href=\"https://java.net\">java is create</a>!</div>");
 	}
-	
+
 	@Test
 	void doesnt_replace_current_node() {
-		processor.addKeywords("/java", "CondationCMS");
+		updateKeywords(List.of(
+				new KW("/java", "CondationCMS")
+		));
 
 		var result = processor.process("<div>CondationCMS is build on java because java is create!</div>", createRequestContext("java/index.md"));
 		result = result.replaceAll("\\n", "");
 
 		assertThat(result)
 				.isEqualToIgnoringWhitespace("<div>CondationCMS is build on java because java is create!</div>");
+	}
+
+	@RepeatedTest(5)
+	void issue_in_demo() {
+		updateKeywords(List.of(
+				new KW("https://condation.com", "CondationCMS"),
+				new KW("https://categories/orange", "Orange"),
+				new KW("https://categories/red", "Red"),
+				new KW("https://categories/blue", "Blue")
+		));
+
+		var result = processor.process("<p>CondationCMS is blue, orange or red</p>", createRequestContext("/index.md"));
+		result = result.replaceAll("\\n", "");
+
+		assertThat(result)
+				.isEqualToIgnoringWhitespace("<p><a href=\"https://condation.com\">CondationCMS</a> is <a href=\"https://categories/blue\">blue</a>, <a href=\"https://categories/orange\">orange</a> or <a href=\"https://categories/red\">red</a></p>");
 	}
 }

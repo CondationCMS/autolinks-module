@@ -26,6 +26,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ProcessingConfig {
     private final Set<String> excludedTags;
@@ -34,6 +36,9 @@ public class ProcessingConfig {
 	private int linkFrequency = 2;
 	private int totalLinkCount = 10;
 	private boolean useTaxonomies;
+	@Getter
+	@Setter
+	private boolean useTaxonomyValues;
 
     private ProcessingConfig(Builder builder) {
         this.excludedTags = new HashSet<>(builder.excludedTags);
@@ -42,6 +47,7 @@ public class ProcessingConfig {
 		this.linkFrequency = builder.linkFrequency;
 		this.totalLinkCount = builder.totalLinkCount;
 		this.useTaxonomies = builder.useTaxonomies;
+		this.useTaxonomyValues = builder.useTaxonomyValues;
     }
 
 	public void setCaseSensitive(boolean caseSensitive) {
@@ -64,6 +70,8 @@ public class ProcessingConfig {
     public boolean isUseTaxonomies() {
         return useTaxonomies;
     }
+	
+	
 	
     public boolean isExcludedTag(String tag) {
         return excludedTags.contains(tag.toLowerCase());
@@ -102,12 +110,14 @@ public class ProcessingConfig {
 		private int linkFrequency = 2;
 		private int totalLinkCount = 10;
 		private boolean useTaxonomies;
+		private boolean useTaxonomyValues;
 
         public Builder() {
             this.excludedTags = new HashSet<>(Arrays.asList("a", "script", "style", "code", "pre"));
             this.caseSensitive = false;
             this.wholeWordsOnly = true;
 			this.useTaxonomies = true;
+			this.useTaxonomyValues = false;
         }
 
 		public Builder setLinkFrequency(int lingFreq) {
@@ -133,6 +143,11 @@ public class ProcessingConfig {
             this.useTaxonomies = useTaxonomies;
             return this;
         }
+		public Builder setUseTaxonomyValues(boolean useTaxonomyValues) {
+            this.useTaxonomyValues = useTaxonomyValues;
+            return this;
+        }
+		
 
         public Builder setWholeWordsOnly(boolean wholeWordsOnly) {
             this.wholeWordsOnly = wholeWordsOnly;

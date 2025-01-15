@@ -11,4 +11,4 @@ autolinks:
 
 All about java
 
-CondationCMS
+CondationCMS is blue, orange or red

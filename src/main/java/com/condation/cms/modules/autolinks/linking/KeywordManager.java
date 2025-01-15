@@ -36,6 +36,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -43,30 +46,43 @@ import java.util.stream.Collectors;
  *
  * @author t.marx
  */
-class KeywordManager {
+public class KeywordManager {
 
-	private final Map<String, KeywordMapping> keywordMappings;
+	private final ConcurrentMap<String, KeywordMapping> keywordMappings;
 	private final List<KeywordPattern> compiledPatterns;
 	private final ICache<String, String> replacementCache;
 
+	private final ConcurrentMap<String, KeywordMapping> update_keywordMappings;
+	private final List<KeywordPattern> update_compiledPatterns;
+	
 	private final CMSModuleContext moduleContext;
 	
 	private final ProcessingConfig config;
 
 	public KeywordManager(ProcessingConfig config, ICache<String, String> cache, CMSModuleContext moduleContext) {
-		this.keywordMappings = new HashMap<>();
-		this.compiledPatterns = new ArrayList<>();
+		this.keywordMappings = new ConcurrentHashMap<>();
+		this.compiledPatterns = new CopyOnWriteArrayList<>();
+		this.update_keywordMappings = new ConcurrentHashMap<>();
+		this.update_compiledPatterns = new CopyOnWriteArrayList<>();
 		this.config = config;
 		this.replacementCache = cache;
 		this.moduleContext = moduleContext;
 	}
 
-	public void clear() {
+	public void prepareUpdate () {
+		this.update_compiledPatterns.clear();
+		this.update_keywordMappings.clear();
+	}
+	
+	public void finishUpdate () {
 		keywordMappings.clear();
 		compiledPatterns.clear();
 		replacementCache.invalidate();
+		
+		keywordMappings.putAll(update_keywordMappings);
+		compiledPatterns.addAll(update_compiledPatterns);
 	}
-
+	
 	public void addKeywords(String url, String... keywords) {
 		addKeywords(url, new HashMap<>(), keywords);
 	}
@@ -78,17 +94,17 @@ class KeywordManager {
 			if (keyword != null && keyword.length() >= 2) {
 				// Store keyword in original case
 				String keywordKey = config.isCaseSensitive() ? keyword : keyword.toLowerCase();
-				keywordMappings.put(keywordKey, mapping);
+				update_keywordMappings.put(keywordKey, mapping);
 			}
 		}
 		updateCompiledPatterns();
 	}
 
 	private void updateCompiledPatterns() {
-		compiledPatterns.clear();
+		update_compiledPatterns.clear();
 
 		// Group keywords by length for optimal matching
-		Map<Integer, List<String>> keywordsByLength = keywordMappings.keySet().stream()
+		Map<Integer, List<String>> keywordsByLength = update_keywordMappings.keySet().stream()
 				.collect(Collectors.groupingBy(String::length));
 
 		// Compile patterns for each length group
@@ -108,7 +124,7 @@ class KeywordManager {
 							flags
 					);
 
-					compiledPatterns.add(new KeywordPattern(pattern, entry.getKey()));
+					update_compiledPatterns.add(new KeywordPattern(pattern, entry.getKey()));
 				});
 	}
 
@@ -160,19 +176,45 @@ class KeywordManager {
 					});
 		}
 
-		// Sort matches by position (descending)
-		matches.sort((m1, m2) -> Integer.compare(m2.start, m1.start));
 
-		// Apply replacements from end to start
-		StringBuilder result = new StringBuilder(text);
+		// Sort matches by start position (descending), and by keyword length (descending) for overlaps
+		matches.sort((m1, m2) -> {
+			int positionComparison = Integer.compare(m2.start, m1.start);
+			if (positionComparison == 0) {
+				return Integer.compare(m2.keyword.length(), m1.keyword.length());
+			}
+			return positionComparison;
+		});
+	
+		// Remove overlapping matches
+		List<Match> filteredMatches = new ArrayList<>();
+		int lastEnd = Integer.MAX_VALUE;
 		for (Match match : matches) {
-			String replacement = buildLink(match.keyword, match.mapping, requestContext);
-			result.replace(match.start, match.end, replacement);
+			if (match.end <= lastEnd) {
+				filteredMatches.add(match);
+				lastEnd = match.start; // Update the last end position
+			}
 		}
-
+	
+		// Replace keywords in the text using placeholders
+		StringBuilder result = new StringBuilder(text);
+		Map<String, String> placeholderToReplacement = new HashMap<>();
+		for (Match match : filteredMatches) {
+			String placeholder = "##PLACEHOLDER_" + match.start + "_" + match.end + "##";
+			placeholderToReplacement.put(placeholder, buildLink(match.keyword, match.mapping, requestContext));
+			result.replace(match.start, match.end, placeholder);
+		}
+	
+		// Replace placeholders with final values
 		String finalResult = result.toString();
+		for (Map.Entry<String, String> entry : placeholderToReplacement.entrySet()) {
+			finalResult = finalResult.replace(entry.getKey(), entry.getValue());
+		}
+	
+		// Cache the result
 		replacementCache.put(cacheKey, finalResult);
 		return finalResult;
+
 	}
 
 	private String buildLink(String matchedText, KeywordMapping mapping, CMSRequestContext requestContext) {
