@@ -48,6 +48,9 @@ public class ContentFilterExtension extends HookSystemRegisterExtensionPoint {
 	}
 
 	private String filterContent (FilterContext<String> context) {
+		if (!getRequestContext().has(CurrentNodeFeature.class)) {
+			return context.value();
+		}
 		var currentNode = getRequestContext().get(CurrentNodeFeature.class).node();
 		if (currentNode.getMetaValue("autolinks.disabled", false)) {
 			return context.value();
