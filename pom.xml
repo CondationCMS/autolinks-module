@@ -12,7 +12,7 @@
 		<module.name>autolinks module</module.name>
 		<module.priority>HIGH</module.priority>
 		
-		<cms.version>7.7.0</cms.version>
+		<cms.version>7.8.0</cms.version>
 		<modules.version>1.0.0</modules.version>
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
@@ -59,7 +59,7 @@
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
-			<version>1.18.36</version>
+			<version>1.18.38</version>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
