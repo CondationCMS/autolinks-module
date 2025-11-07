@@ -161,7 +161,7 @@ public class KeywordConfiguration {
 			final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
 			var nodePath = contentBase.resolve(node.uri());
 
-			String url = PathUtil.toURI(nodePath, contentBase);
+			String url = PathUtil.toURL(nodePath, contentBase);
 			List<String> keywords = (List<String>) MapUtil.getValue(node.data(), "autolinks.keywords");
 
 			updateConsumer.accept(new Keyword(url, keywords));

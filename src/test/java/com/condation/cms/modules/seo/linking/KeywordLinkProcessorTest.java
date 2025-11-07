@@ -30,8 +30,8 @@ import com.condation.cms.api.db.DB;
 import com.condation.cms.api.db.DBFileSystem;
 import com.condation.cms.api.feature.features.CurrentNodeFeature;
 import com.condation.cms.api.feature.features.DBFeature;
-import com.condation.cms.api.module.CMSModuleContext;
-import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.module.SiteModuleContext;
+import com.condation.cms.api.module.SiteRequestContext;
 import com.condation.cms.api.request.RequestContext;
 import java.nio.file.Path;
 import org.junit.jupiter.api.*;
@@ -92,7 +92,7 @@ class KeywordLinkProcessorTest {
 	}
 	private ICache<String, String> iCache;
 
-	private CMSModuleContext createModuleContext() {
+	private SiteModuleContext createModuleContext() {
 		var db = Mockito.mock(DB.class);
 		var fileSystem = Mockito.mock(DBFileSystem.class);
 		var contentBase = Path.of("/content/");
@@ -100,17 +100,17 @@ class KeywordLinkProcessorTest {
 		Mockito.when(fileSystem.resolve(Constants.Folders.CONTENT)).thenReturn(contentBase);
 		Mockito.when(db.getFileSystem()).thenReturn(fileSystem);
 
-		CMSModuleContext moduleContext = new CMSModuleContext();
+		SiteModuleContext moduleContext = new SiteModuleContext();
 		moduleContext.add(DBFeature.class, new DBFeature(db));
 
 		return moduleContext;
 	}
 
-	private CMSRequestContext createRequestContext() {
+	private SiteRequestContext createRequestContext() {
 		return createRequestContext("/index.md");
 	}
 
-	private CMSRequestContext createRequestContext(String currentNodeURI) {
+	private SiteRequestContext createRequestContext(String currentNodeURI) {
 		var db = Mockito.mock(DB.class);
 		var fileSystem = Mockito.mock(DBFileSystem.class);
 		var currentNode = Mockito.mock(ContentNode.class);
@@ -123,7 +123,7 @@ class KeywordLinkProcessorTest {
 		RequestContext requestContext = new RequestContext();
 		requestContext.add(DBFeature.class, new DBFeature(db));
 		requestContext.add(CurrentNodeFeature.class, new CurrentNodeFeature(currentNode));
-		return new CMSRequestContext(requestContext);
+		return new SiteRequestContext(requestContext);
 	}
 
 	private void updateKeywords(List<KW> keywords) {

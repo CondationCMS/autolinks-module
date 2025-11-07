@@ -27,8 +27,8 @@ import com.condation.cms.api.db.ContentNode;
 import com.condation.cms.api.db.DB;
 import com.condation.cms.api.feature.features.CurrentNodeFeature;
 import com.condation.cms.api.feature.features.DBFeature;
-import com.condation.cms.api.module.CMSModuleContext;
-import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.module.SiteModuleContext;
+import com.condation.cms.api.module.SiteRequestContext;
 import com.condation.cms.api.utils.HTTPUtil;
 import com.condation.cms.api.utils.PathUtil;
 import java.nio.file.Path;
@@ -55,11 +55,11 @@ public class KeywordManager {
 	private final ConcurrentMap<String, KeywordMapping> update_keywordMappings;
 	private final List<KeywordPattern> update_compiledPatterns;
 	
-	private final CMSModuleContext moduleContext;
+	private final SiteModuleContext moduleContext;
 	
 	private final ProcessingConfig config;
 
-	public KeywordManager(ProcessingConfig config, ICache<String, String> cache, CMSModuleContext moduleContext) {
+	public KeywordManager(ProcessingConfig config, ICache<String, String> cache, SiteModuleContext moduleContext) {
 		this.keywordMappings = new ConcurrentHashMap<>();
 		this.compiledPatterns = new CopyOnWriteArrayList<>();
 		this.update_keywordMappings = new ConcurrentHashMap<>();
@@ -128,7 +128,7 @@ public class KeywordManager {
 				});
 	}
 
-	public String replaceKeywords(String text, CMSRequestContext requestContext) {
+	public String replaceKeywords(String text, SiteRequestContext requestContext) {
 		// Check cache first
 		String cacheKey = Integer.toHexString((text + config.hashCode()).hashCode());
 		String cachedResult = replacementCache.get(cacheKey);
@@ -141,7 +141,7 @@ public class KeywordManager {
 		ContentNode currentNode = requestContext.get(CurrentNodeFeature.class).node();
 		final Path contentBase = db.getFileSystem().resolve(Constants.Folders.CONTENT);
 		var nodePath = contentBase.resolve(currentNode.uri());
-		String currentNodeUrl = PathUtil.toURI(nodePath, contentBase);
+		String currentNodeUrl = PathUtil.toURL(nodePath, contentBase);
 		
 		var kwFrequency = requestContext.get(KeywordFrequenceFeature.class);
 		var linkFrequency = requestContext.get(LinkFrequenceFeature.class);
@@ -217,7 +217,7 @@ public class KeywordManager {
 
 	}
 
-	private String buildLink(String matchedText, KeywordMapping mapping, CMSRequestContext requestContext) {
+	private String buildLink(String matchedText, KeywordMapping mapping, SiteRequestContext requestContext) {
 		String cacheKey = matchedText + mapping.hashCode();
 
 		if (replacementCache.contains(cacheKey)) {

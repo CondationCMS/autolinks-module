@@ -27,8 +27,8 @@ package com.condation.cms.modules.autolinks.linking;
  * @author t.marx
  */
 import com.condation.cms.api.cache.ICache;
-import com.condation.cms.api.module.CMSModuleContext;
-import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.module.SiteModuleContext;
+import com.condation.cms.api.module.SiteRequestContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.jsoup.Jsoup;
@@ -49,12 +49,12 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
 	@Getter
 	private KeywordConfiguration keywordConfig;
 	
-	public KeywordLinkProcessor(ProcessingConfig config, ICache<String, String> cache, CMSModuleContext context) {
+	public KeywordLinkProcessor(ProcessingConfig config, ICache<String, String> cache, SiteModuleContext context) {
         this.keywordManager = new KeywordManager(config, cache, context);
         this.config = config;
     }
 
-	public static KeywordLinkProcessor build (Path configFile, ICache<String, String> cache, CMSModuleContext moduleContext) throws IOException {
+	public static KeywordLinkProcessor build (Path configFile, ICache<String, String> cache, SiteModuleContext moduleContext) throws IOException {
 		ProcessingConfig pconfig = new ProcessingConfig.Builder().build();
 		var processor = new KeywordLinkProcessor(pconfig, cache, moduleContext);
 		KeywordConfiguration kconfig = new KeywordConfiguration(configFile, processor, pconfig);
@@ -76,7 +76,7 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
 		keywordManager.finishUpdate();
 	}
 	
-    public String process(String htmlContent, CMSRequestContext requestContext) {
+    public String process(String htmlContent, SiteRequestContext requestContext) {
         if (htmlContent == null || htmlContent.length() < MINIMUM_KEYWORD_LENGTH) {
             return htmlContent;
         }
@@ -91,7 +91,7 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
         return result;
     }
 
-    private void processNode(Element element, CMSRequestContext requestContext) {
+    private void processNode(Element element, SiteRequestContext requestContext) {
         if (config.isExcludedTag(element.tagName())) {
             return;
         }
@@ -103,7 +103,7 @@ public class KeywordLinkProcessor implements Consumer<KeywordConfiguration.Keywo
         element.children().forEach(node -> processNode(node, requestContext));
     }
 
-    private void processTextNode(TextNode textNode, CMSRequestContext requestContext) {
+    private void processTextNode(TextNode textNode, SiteRequestContext requestContext) {
         String processed = keywordManager.replaceKeywords(textNode.text(), requestContext);
         if (!textNode.text().equals(processed)) {
             textNode.after(processed);

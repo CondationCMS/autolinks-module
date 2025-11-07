@@ -27,8 +27,8 @@ import com.condation.cms.api.db.DB;
 import com.condation.cms.api.feature.features.CacheManagerFeature;
 import com.condation.cms.api.feature.features.CronJobSchedulerFeature;
 import com.condation.cms.api.feature.features.DBFeature;
-import com.condation.cms.api.module.CMSModuleContext;
-import com.condation.cms.api.module.CMSRequestContext;
+import com.condation.cms.api.module.SiteModuleContext;
+import com.condation.cms.api.module.SiteRequestContext;
 import com.condation.cms.api.scheduler.CronJobContext;
 import com.condation.cms.modules.autolinks.linking.KeywordLinkProcessor;
 import com.condation.modules.api.ModuleLifeCycleExtension;
@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Extension(ModuleLifeCycleExtension.class)
-public class LifeCycleExtension extends ModuleLifeCycleExtension<CMSModuleContext, CMSRequestContext> {
+public class LifeCycleExtension extends ModuleLifeCycleExtension<SiteModuleContext, SiteRequestContext> {
 
 	public static KeywordLinkProcessor PROCESSOR;
 
