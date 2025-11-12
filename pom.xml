@@ -13,7 +13,7 @@
 		<module.priority>HIGH</module.priority>
 		
 		<cms.version>8.0.0</cms.version>
-		<modules.version>1.2.0</modules.version>
+		<modules.version>1.3.0</modules.version>
 		<maven.compiler.source>25</maven.compiler.source>
 		<maven.compiler.target>25</maven.compiler.target>
 	</properties>
